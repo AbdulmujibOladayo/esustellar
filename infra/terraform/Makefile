@@ -31,15 +31,18 @@ plan-mainnet:
 apply:
 	$(MAKE) apply-$(ENV)
 
-apply-testnet: plan-testnet
+apply-testnet:
+	@test -f tfplan-testnet || { echo "No testnet plan found; run 'make plan-testnet' and review it first."; exit 1; }
 	@echo "Applying Terraform changes for testnet..."
 	terraform apply -input=false -auto-approve tfplan-testnet
 
-apply-staging: plan-staging
+apply-staging:
+	@test -f tfplan-staging || { echo "No staging plan found; run 'make plan-staging' and review it first."; exit 1; }
 	@echo "Applying Terraform changes for staging..."
 	terraform apply -input=false -auto-approve tfplan-staging
 
-apply-mainnet: plan-mainnet
+apply-mainnet:
+	@test -f tfplan-mainnet || { echo "No mainnet plan found; run 'make plan-mainnet' and review it first."; exit 1; }
 	@echo "Applying Terraform changes for mainnet..."
 	terraform apply -input=false -auto-approve tfplan-mainnet
 
