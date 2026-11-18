@@ -105,3 +105,12 @@ monitoring/            ← DEPRECATED legacy configs (see table above)
 - Changing cloud resources: edit `infra/testnet/`. Deploying contracts or
   running testnet locally: use `environments/testnet/`. App manifests live
   in `infra/k8s/overlays/testnet/`.
+
+## Databases and workload IAM
+
+`DATABASE_URL` has no Terraform-backed RDS module today; that is a documented
+external-provisioning exception, not a missing resource — see
+[database provisioning](docs/database-provisioning.md). The IAM module gives
+the event indexer and balance exporter their own least-privilege roles instead
+of sharing `ecs_task`, and denies `iam:PassRole` to the CI/CD role so task
+definition registration cannot be used for privilege escalation.
