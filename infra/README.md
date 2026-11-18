@@ -105,3 +105,63 @@ monitoring/            ← DEPRECATED legacy configs (see table above)
 - Changing cloud resources: edit `infra/testnet/`. Deploying contracts or
   running testnet locally: use `environments/testnet/`. App manifests live
   in `infra/k8s/overlays/testnet/`.
+
+## Terraform root version alignment (#1308)
+
+Four paths have historically been treated as Terraform roots. Today
+`infra/terraform/`, `infra/terraform/state-bootstrap/`, `infra/testnet/` and
+`environments/staging/` contain live `*.tf`; `environments/testnet/` is a
+contract-deployment workspace with no Terraform files. All four live roots now
+pin Terraform `~> 1.6.0`, and the AWS-using roots pin `hashicorp/aws` to
+`= 5.65.0`.
+
+`python3 infra/scripts/check-terraform-versions.py` scans every root and fails
+on CLI drift or divergent pins for a provider used by more than one root. It
+runs in `.github/workflows/terraform-version-alignment.yml`; use it before
+accepting a dependabot provider bump in only one root.
+
+## Bootstrap apply order (#1305)
+
+There is no single automation that stands a new environment up. The required
+order is a dependency chain; applying out of order either fails at `init` (no
+state bucket) or creates resources that point at nothing.
+
+```
+state-bootstrap (local state)
+        │  creates S3 state bucket + DynamoDB lock table
+        ▼
+infra/terraform  ──► infra/testnet          (independent S3 state keys)
+        │                 │
+        └────────┬────────┘
+                 ▼
+        infra/k8s/overlays/<env>            (kustomize build + kubectl apply)
+                 ▼
+        infra/monitoring/*                  (separate esustellar-monitoring namespace)
+                 ▼
+        smoke-test.sh / healthcheck.sh / invalidate-cdn-cache.sh
+```
+
+1. **`infra/terraform/state-bootstrap`** — `terraform init && terraform apply`
+   with the local backend. Once per AWS account. Keep
+   `terraform.tfstate` safe.
+2. **Backend migration / init of each root** — `terraform init -reconfigure
+   -backend-config=backend/<env>.hcl` in `infra/terraform`, then in
+   `infra/testnet` and any other root that owns cloud resources. All roots
+   must use the same CLI pin (#1308) and their own state keys.
+3. **Shared and per-environment resources** — `terraform apply` in
+   `infra/terraform` first (VPC, storage, IAM, DNS/SSL modules), then
+   `infra/testnet`. `environments/staging/` is a separate Kubernetes-provider
+   root and is not part of this dependency chain; `environments/testnet/`
+   has no Terraform root at all.
+4. **Overlay render and apply** — `kustomize build infra/k8s/overlays/<env>`,
+   validate with `infra/scripts/validate-k8s-manifests.sh`, then
+   `kubectl apply -k infra/k8s/overlays/<env>`. Never apply the flat `k8s/`
+   tree into the same cluster (see `docs/runbooks/dual-manifest-tree-incident.md`).
+5. **Monitoring** — apply `infra/monitoring/*` into `esustellar-monitoring`;
+   the network policy exception for that namespace lives in
+   `infra/k8s/network-policies.yaml`.
+6. **Post-deploy** — `infra/scripts/smoke-test.sh`, `healthcheck.sh`, then
+   `invalidate-cdn-cache.sh` once the rollout completes.
+
+See [docs/terraform-k8s-wiring.md](docs/terraform-k8s-wiring.md) for what is
+(and is not) automatically propagated from Terraform outputs into manifests.
