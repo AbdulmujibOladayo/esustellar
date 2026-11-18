@@ -105,3 +105,16 @@ monitoring/            ← DEPRECATED legacy configs (see table above)
 - Changing cloud resources: edit `infra/testnet/`. Deploying contracts or
   running testnet locally: use `environments/testnet/`. App manifests live
   in `infra/k8s/overlays/testnet/`.
+
+## Verified infrastructure behaviour (#1297–#1300)
+
+These four audit questions were checked against the committed configuration.
+The answers are recorded here so a future reader does not have to repeat the
+grep, and so drift is obvious when a module changes.
+
+| Question | Answer | Where to verify |
+|---|---|---|
+| Is there DNS for the exact host the Ingress serves? | `infra/terraform/modules/dns` used to create only `${environment}.${domain_name}`, but the mainnet overlay serves the apex `esustellar.io`. The module now supports `create_apex_record` / `apex_domain_name`; the mainnet instantiation must set `create_apex_record = true` (no Terraform root instantiates the DNS module yet, so this is a wiring requirement, not an applied record). | `modules/dns/variables.tf`, `modules/dns/main.tf`, `infra/k8s/overlays/mainnet/kustomization.yaml` |
+| Are VPC flow logs really enabled? | Yes. `aws_flow_log.this` is created by default (`enable_flow_logs = true`) and writes to a dedicated CloudWatch group through a scoped IAM role; it is not a planned-only comment. | `modules/vpc/main.tf`, `modules/vpc/variables.tf` |
+| How many NAT gateways are there? | Default is one per availability zone for HA. `nat_gateway_count = 1` is a deliberate cost saving with a single-AZ failure mode, documented on the variable. | `modules/vpc/variables.tf` |
+| Can Prometheus scrape across namespaces? | Yes. `allow-monitoring` admits `esustellar-monitoring` on port 9464, matching the Prometheus relabel target. See the mapping in [infra/k8s/README.md](k8s/README.md). | `k8s/network-policies.yaml`, `monitoring/prometheus/prometheus-deployment.yaml` |
