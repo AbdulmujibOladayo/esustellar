@@ -5,7 +5,10 @@ context and consequences.
 
 ## Template
 
-Use the template in [000-template.md](./000-template.md).
+Use the template in [000-template.md](./000-template.md), including the
+"Infrastructure cost impact" section — `.github/workflows/infracost.yml`
+already estimates cost on infra PRs, and the ADR should record the decision
+behind that number.
 
 ## Index
 
