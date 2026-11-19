@@ -168,12 +168,21 @@ access to the state bucket. The same checks are wired into
 ```bash
 cd infra/terraform
 
-# Review changes
-make plan
+# Plan and review changes for the selected environment (testnet by default)
+make plan-testnet
 
-# Apply changes
-make apply
+# Apply exactly the saved plan you reviewed
+make apply-testnet
 ```
+
+Use `plan-staging`/`apply-staging` or `plan-mainnet`/`apply-mainnet` for those
+environments. Each plan target initializes the matching S3 backend and passes
+its explicit `../../environments/<env>.tfvars` file. The apply target applies
+that environment's saved plan and fails if it is missing; it cannot silently
+pick up a different variable file or generate a new, unreviewed plan. Generic
+`make plan` and `make apply` select the environment from `ENV` (default
+`testnet`), for example `make plan ENV=staging` followed by
+`make apply ENV=staging`.
 
 ## Variables
 
