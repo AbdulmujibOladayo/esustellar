@@ -66,3 +66,7 @@ normal bootstrap sequence leaves this root's state local.
 
 - `prevent_destroy = true` protects the bucket and lock table.
 - The bucket has versioning, server-side encryption, and public-access blocks.
+
+The full chain from this root through the other Terraform roots, the k8s
+overlays and monitoring is documented in
+[the bootstrap apply order](../../README.md#bootstrap-apply-order-1305).
