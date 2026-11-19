@@ -12,6 +12,7 @@ output "ecs_execution_secret_access" {
     secretsmanager_secret_arns = var.secretsmanager_secret_arns
     ssm_parameter_arns         = var.ssm_parameter_arns
   }
+  sensitive = true
 }
 
 output "ecs_task_role_arn" {
