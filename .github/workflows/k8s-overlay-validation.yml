@@ -178,3 +178,13 @@ jobs:
       - name: Show rendered manifests on failure
         if: failure()
         run: cat rendered.yaml
+
+  image-references:
+    # #1288: both manifest trees previously claimed to deploy esustellar-web
+    # from different repositories. Fail on any future drift instead of relying
+    # on a one-time manual correction.
+    name: single canonical web image repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: bash infra/scripts/validate-image-references.sh
