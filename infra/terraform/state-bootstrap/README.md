@@ -66,9 +66,26 @@ normal bootstrap sequence leaves this root's state local.
 
 ## Safeguards
 
-- `prevent_destroy = true` protects the bucket and lock table.
+- `prevent_destroy = true` protects the bucket and lock table from a Terraform
+  destroy or a replacement while they are tracked in this root's state.
 - The bucket has versioning, server-side encryption, and public-access blocks.
 
+Do not treat this root as safe to initialize from scratch against an account
+that already has the named resources. Keep and back up the local
+`terraform.tfstate`: `prevent_destroy` cannot associate existing AWS resources
+with a missing local state file. With an empty state, Terraform will plan to
+create the resources again, and AWS will reject the duplicate names rather than
+adopting or safely managing them. Stop if that happens; restore the state file
+from backup or import the existing resources before applying:
+
+```bash
+terraform import aws_s3_bucket.terraform_state <state-bucket-name>
+terraform import aws_dynamodb_table.terraform_locks <lock-table-name>
+terraform plan
+```
+
+Review the plan before applying, including any separately managed bucket
+configuration resources.
 The full chain from this root through the other Terraform roots, the k8s
 overlays and monitoring is documented in
 [the bootstrap apply order](../../README.md#bootstrap-apply-order-1305).

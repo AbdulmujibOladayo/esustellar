@@ -207,11 +207,12 @@ pick up a different variable file or generate a new, unreviewed plan. Generic
 
 The ECR module defines repository resources only; no current Terraform root
 instantiates it, and it does not build or publish images. The Kubernetes web
-deployment currently pulls `ghcr.io/blockhaven-labs/esustellar-web`, published
-manually as described in [the deployment guide](../../docs/deployment.md). No
+deployment pulls `ghcr.io/blockhaven-labs/esustellar-web` from GHCR, published
+manually as described in [the deployment guide](../../docs/deployment.md);
+these Terraform ECR repositories are not its image destination. No
 image-publishing workflow currently targets ECR. The balance-exporter has a
 Dockerfile but no configured image-publishing destination or deployment image
-reference.
+reference, so its ECR repository is not currently used by a workload.
 
 `modules/iam` requires the ARNs of the resources each role may touch
 (`kms_key_arn`, `cloudfront_distribution_arn`, `ecs_cluster_arn`,
