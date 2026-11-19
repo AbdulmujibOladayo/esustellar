@@ -29,3 +29,32 @@ Keep resource values and probe paths in sync when editing either tree.
 
 `environments/testnet/` contains no `k8s/` directory, so there is no duplicate
 of `infra/k8s/overlays/testnet`; the overlay is the only source of truth.
+
+## Network policy to monitoring mapping (#1297)
+
+`esustellar` runs a default-deny ingress policy. Scraping still works because
+`infra/k8s/network-policies.yaml` contains an explicit exception:
+
+| Policy | Namespace / selector | Port | Consumer |
+|---|---|---|---|
+| `deny-all-ingress` | all pods in `esustellar` | — | baseline deny |
+| `allow-monitoring` | pods labelled `app: esustellar-web` from namespace `esustellar-monitoring` | 9464 | Prometheus `esustellar-web` scrape job |
+| `allow-only-api-egress` monitoring leg | to namespace `esustellar-monitoring` (all ports) | any | return path for scrapes and Alertmanager traffic |
+
+Prometheus's `kubernetes_sd_configs` is scoped to `namespaces: [esustellar]` and
+its relabel rule rewrites every target to port `9464`, so the policy port and the
+scrape port agree.
+
+Verification after any policy change (do not assume the manifest is enough):
+
+```bash
+kubectl -n esustellar get netpol allow-monitoring -o yaml
+kubectl -n esustellar-monitoring run netpol-probe --rm -it --image=curlimages/curl -- \
+  curl -sS --max-time 5 http://esustellar-web.esustellar.svc.cluster.local:9464/metrics
+kubectl -n esustellar-monitoring port-forward svc/prometheus 9090:9090
+# check the `esustellar-web` target is UP at http://localhost:9090/targets
+```
+
+If the probe times out, check the namespace label
+`kubernetes.io/metadata.name=esustellar-monitoring` and the pod label
+`app=esustellar-web` before changing the policy.
